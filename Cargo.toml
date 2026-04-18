@@ -1,0 +1,41 @@
+[package]
+name = "osarg"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "A tiny, zero-dependency, borrow-first CLI parser for Rust binaries."
+license = "Apache-2.0"
+readme = "README.md"
+documentation = "https://docs.rs/osarg"
+homepage = "https://github.com/lvillis/osarg-rs"
+repository = "https://github.com/lvillis/osarg-rs"
+keywords = ["cli", "parser", "arg", "osstr"]
+categories = ["command-line-interface", "command-line-utilities"]
+include = [
+    "/src/**",
+    "/tests/**",
+    "/benches/**",
+    "/examples/**",
+    "/Cargo.toml",
+    "/README.md",
+]
+
+[lib]
+path = "src/lib.rs"
+
+[[bench]]
+name = "parse"
+harness = false
+
+[package.metadata.release]
+push = true
+publish = false
+verify = true
+sign-commit = true
+sign-tag = true
+allow-branch = ["main"]
+tag-prefix = ""
+tag-name = "{{prefix}}{{version}}"
+tag-message = "chore: release {{crate_name}} version {{version}}"
+pre-release-commit-message = "chore: release {{crate_name}} version {{version}}"
+pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
