@@ -33,11 +33,11 @@ struct Config {
 fn parse_env_pair(value: Value<'_>) -> Result<(String, String), osarg::Error> {
     let text = value.to_str()?;
     let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(osarg::Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     };
 
     if key.is_empty() {
-        return Err(osarg::Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     }
 
     Ok((key.to_owned(), raw_value.to_owned()))
@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
         dry_run,
         envs,
-        command: command.ok_or_else(|| osarg::Error::unexpected_argument("<CMD>".into()))?,
+        command: command.ok_or_else(|| osarg::Error::missing_argument_for("<CMD>".into()))?,
         args,
     };
 

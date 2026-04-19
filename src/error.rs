@@ -6,7 +6,8 @@ use std::ffi::{OsStr, OsString};
 /// `osarg` keeps error representation small and structured:
 ///
 /// - [`ErrorKind`] identifies the stable category
-/// - [`Error::argument`] exposes the associated argument when one exists
+/// - [`Error::argument`] exposes the associated argument when one exists,
+///   including caller-owned placeholders such as `<PATH>`
 ///
 /// Callers can use the public constructors to build their own structured
 /// errors after additional validation.
@@ -24,6 +25,8 @@ pub enum ErrorKind {
     UnexpectedArgument,
     /// The caller rejected a positional value.
     UnexpectedPositional,
+    /// A required argument or positional was not provided.
+    MissingArgument,
     /// An option expected a value but none was available.
     MissingValue,
     /// A value failed typed parsing.
@@ -46,8 +49,9 @@ impl Error {
     /// Returns the argument associated with the error, when available.
     ///
     /// Parser-produced errors usually attach the offending argument or value.
-    /// Some synthesized errors, such as "no current value is available", may
-    /// have no associated argument.
+    /// Caller-authored errors can also attach placeholders such as `<PATH>` or
+    /// `<CMD>` for missing required arguments. Some synthesized errors, such as
+    /// "no current value is available", may have no associated argument.
     #[must_use = "the associated argument is returned from this method"]
     pub fn argument(&self) -> Option<&OsStr> {
         self.argument.as_deref()
@@ -65,6 +69,14 @@ impl Error {
     pub fn unexpected_positional(argument: OsString) -> Self {
         Self {
             kind: ErrorKind::UnexpectedPositional,
+            argument: Some(argument),
+        }
+    }
+
+    /// Builds an [`ErrorKind::MissingArgument`] error.
+    pub fn missing_argument_for(argument: OsString) -> Self {
+        Self {
+            kind: ErrorKind::MissingArgument,
             argument: Some(argument),
         }
     }
@@ -144,6 +156,9 @@ impl fmt::Display for Error {
             (ErrorKind::UnexpectedPositional, Some(argument)) => {
                 write!(f, "unexpected positional argument: {argument}")
             }
+            (ErrorKind::MissingArgument, Some(argument)) => {
+                write!(f, "missing required argument: {argument}")
+            }
             (ErrorKind::MissingValue, Some(argument)) => {
                 write!(f, "missing value for argument: {argument}")
             }
@@ -161,6 +176,7 @@ impl fmt::Display for Error {
             }
             (ErrorKind::UnexpectedArgument, None) => write!(f, "unexpected argument"),
             (ErrorKind::UnexpectedPositional, None) => write!(f, "unexpected positional argument"),
+            (ErrorKind::MissingArgument, None) => write!(f, "missing required argument"),
             (ErrorKind::MissingValue, None) => write!(f, "missing value"),
             (ErrorKind::InvalidValue, None) => write!(f, "invalid value"),
             (ErrorKind::InvalidUtf8, None) => write!(f, "argument is not valid UTF-8"),

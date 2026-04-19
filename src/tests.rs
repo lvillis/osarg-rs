@@ -299,7 +299,25 @@ fn value_supports_display_and_try_from() {
 }
 
 #[test]
+fn value_can_build_invalid_value_error() {
+    let mut parser = parser(&["MODE"]);
+    let arg = parser.next().unwrap().unwrap();
+    let value = arg.as_value().unwrap();
+    let error = value.invalid();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidValue);
+    assert_eq!(error.argument().unwrap().to_string_lossy(), "MODE");
+}
+
+#[test]
 fn public_error_constructors_are_structured() {
+    let missing_argument = Error::missing_argument_for("<PATH>".into());
+    assert_eq!(missing_argument.kind(), ErrorKind::MissingArgument);
+    assert_eq!(
+        missing_argument.to_string(),
+        "missing required argument: <PATH>"
+    );
+
     let missing = Error::missing_value_for("--port".into());
     assert_eq!(missing.kind(), ErrorKind::MissingValue);
     assert_eq!(missing.argument().unwrap().to_string_lossy(), "--port");
@@ -326,6 +344,17 @@ fn parser_can_parse_typed_values_directly() {
 }
 
 #[test]
+fn parser_can_read_utf8_and_owned_os_values_directly() {
+    let mut bind_parser = parser(&["--bind", "0.0.0.0"]);
+    assert_eq!(bind_parser.next().unwrap(), Some(Arg::Long("bind")));
+    assert_eq!(bind_parser.string().unwrap(), "0.0.0.0");
+
+    let mut path_parser = parser(&["--path", "./data"]);
+    assert_eq!(path_parser.next().unwrap(), Some(Arg::Long("path")));
+    assert_eq!(path_parser.os_string().unwrap(), OsString::from("./data"));
+}
+
+#[test]
 fn parser_can_parse_optional_typed_values() {
     let mut color_parser = parser(&["--color", "7"]);
     assert_eq!(color_parser.next().unwrap(), Some(Arg::Long("color")));
@@ -335,6 +364,31 @@ fn parser_can_parse_optional_typed_values() {
     assert_eq!(missing_parser.next().unwrap(), Some(Arg::Long("color")));
     assert_eq!(missing_parser.parse_opt::<u8>().unwrap(), None);
     assert_eq!(missing_parser.next().unwrap(), Some(Arg::Long("help")));
+}
+
+#[test]
+fn parser_can_read_optional_utf8_and_owned_os_values_directly() {
+    let mut string_parser = parser(&["--color", "auto"]);
+    assert_eq!(string_parser.next().unwrap(), Some(Arg::Long("color")));
+    assert_eq!(string_parser.string_opt().unwrap(), Some("auto"));
+
+    let mut missing_string_parser = parser(&["--color", "--help"]);
+    assert_eq!(
+        missing_string_parser.next().unwrap(),
+        Some(Arg::Long("color"))
+    );
+    assert_eq!(missing_string_parser.string_opt().unwrap(), None);
+    assert_eq!(
+        missing_string_parser.next().unwrap(),
+        Some(Arg::Long("help"))
+    );
+
+    let mut os_parser = parser(&["--path", "./data"]);
+    assert_eq!(os_parser.next().unwrap(), Some(Arg::Long("path")));
+    assert_eq!(
+        os_parser.os_string_opt().unwrap(),
+        Some(OsString::from("./data"))
+    );
 }
 
 #[test]

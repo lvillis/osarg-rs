@@ -60,6 +60,26 @@ impl<'a> Value<'a> {
             .map_err(|_| Error::invalid_value(self.raw))
     }
 
+    /// Converts the value into an "invalid value" error.
+    ///
+    /// This is useful when user code performs additional validation after
+    /// calling [`Value::to_str`] or otherwise interpreting the raw value.
+    ///
+    /// ```rust
+    /// use osarg::{Arg, Parser};
+    ///
+    /// let mut parser = Parser::new(["MODE"].into_iter().map(std::ffi::OsString::from));
+    /// let arg = parser.next()?.expect("value present");
+    /// let value = arg.as_value().expect("positional");
+    ///
+    /// assert_eq!(value.invalid().to_string(), "invalid value: MODE");
+    /// # Ok::<(), osarg::Error>(())
+    /// ```
+    #[must_use = "the constructed error must be returned or handled by the caller"]
+    pub fn invalid(self) -> Error {
+        Error::invalid_value(self.raw)
+    }
+
     /// Converts the value into an "unexpected positional" error.
     ///
     /// This is a convenience for rejecting positional arguments in user code.

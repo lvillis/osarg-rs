@@ -62,7 +62,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     Ok(Config {
         color,
         verbose,
-        path: path.ok_or_else(|| Error::unexpected_argument("<PATH>".into()))?,
+        path: path.ok_or_else(|| Error::missing_argument_for("<PATH>".into()))?,
     })
 }
 

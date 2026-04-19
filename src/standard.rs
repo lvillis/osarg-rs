@@ -8,7 +8,7 @@
 //!
 //! ```rust
 //! use osarg::{Arg, Parser, help, standard};
-//! use standard::Flag;
+//! use osarg::standard::Flag;
 //!
 //! const SECTIONS: &[help::Section<'static>] = &[help::Section::new(
 //!     "options:",

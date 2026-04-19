@@ -90,7 +90,7 @@
 //!
 //! ```rust
 //! use osarg::{Arg, Parser, help, standard};
-//! use standard::Flag;
+//! use osarg::standard::Flag;
 //!
 //! const SECTIONS: &[help::Section<'static>] = &[help::Section::new(
 //!     "options:",
@@ -135,7 +135,7 @@
 //! while let Some(arg) = parser.next()? {
 //!     match arg {
 //!         Arg::Long("env") => {
-//!             env_value = Some(parser.value()?.to_os_string());
+//!             env_value = Some(parser.os_string()?);
 //!         }
 //!         Arg::Value(value) => {
 //!             command = Some(value.to_os_string());

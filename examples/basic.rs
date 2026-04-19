@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match arg {
             Arg::Short('b') | Arg::Long("bind") => {
-                bind = parser.value()?.to_str()?.to_owned();
+                bind = parser.string()?.to_owned();
             }
             Arg::Short('p') | Arg::Long("port") => {
                 port = parser.parse::<u16>()?;
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
         bind,
         port,
-        path: path.ok_or_else(|| osarg::Error::unexpected_argument("<PATH>".into()))?,
+        path: path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?,
     };
 
     println!(

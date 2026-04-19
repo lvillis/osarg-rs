@@ -20,7 +20,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('b') | Arg::Long("bind") => {
-                bind = parser.value()?.to_str()?.to_owned();
+                bind = parser.string()?.to_owned();
             }
             Arg::Short('p') | Arg::Long("port") => {
                 port = parser.parse::<u16>()?;
@@ -38,7 +38,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     Ok(Config {
         bind,
         port,
-        path: path.ok_or_else(|| Error::unexpected_argument("<PATH>".into()))?,
+        path: path.ok_or_else(|| Error::missing_argument_for("<PATH>".into()))?,
     })
 }
 
@@ -66,6 +66,6 @@ fn rejects_extra_positionals_in_basic_cli() {
 #[test]
 fn reports_missing_required_positional_in_basic_cli() {
     let error = parse_config(&["--bind", "0.0.0.0"]).unwrap_err();
-    assert_eq!(error.kind(), ErrorKind::UnexpectedArgument);
+    assert_eq!(error.kind(), ErrorKind::MissingArgument);
     assert_eq!(error.argument().unwrap().to_string_lossy(), "<PATH>");
 }

@@ -274,6 +274,50 @@ where
         }
     }
 
+    /// Returns the required value for the current option as an owned [`OsString`].
+    ///
+    /// This is shorthand for `parser.value()?.to_os_string()`.
+    ///
+    /// ```rust
+    /// use osarg::{Arg, Parser};
+    ///
+    /// let mut parser = Parser::new(
+    ///     ["--path", "./data"]
+    ///         .into_iter()
+    ///         .map(std::ffi::OsString::from),
+    /// );
+    ///
+    /// assert_eq!(parser.next()?, Some(Arg::Long("path")));
+    /// assert_eq!(parser.os_string()?, std::ffi::OsString::from("./data"));
+    /// # Ok::<(), osarg::Error>(())
+    /// ```
+    #[must_use = "callers must use or propagate the owned OS string"]
+    pub fn os_string(&mut self) -> Result<OsString, Error> {
+        Ok(self.value()?.to_os_string())
+    }
+
+    /// Returns the required value for the current option as UTF-8.
+    ///
+    /// This is shorthand for `parser.value()?.to_str()`.
+    ///
+    /// ```rust
+    /// use osarg::{Arg, Parser};
+    ///
+    /// let mut parser = Parser::new(
+    ///     ["--bind", "0.0.0.0"]
+    ///         .into_iter()
+    ///         .map(std::ffi::OsString::from),
+    /// );
+    ///
+    /// assert_eq!(parser.next()?, Some(Arg::Long("bind")));
+    /// assert_eq!(parser.string()?, "0.0.0.0");
+    /// # Ok::<(), osarg::Error>(())
+    /// ```
+    #[must_use = "callers must use or propagate the UTF-8 string value"]
+    pub fn string(&mut self) -> Result<&str, Error> {
+        self.value()?.to_str()
+    }
+
     /// Returns an optional value for the current option.
     ///
     /// Attached values are consumed first. For separated values such as
@@ -334,6 +378,29 @@ where
                 Err(Error::value_unavailable(self.current.as_deref()))
             }
         }
+    }
+
+    /// Returns the optional value for the current option as an owned [`OsString`].
+    ///
+    /// This is shorthand for `parser.value_opt()?.map(Value::to_os_string)`.
+    ///
+    /// When the next token already looks like another option, this returns
+    /// `Ok(None)` and leaves that token untouched.
+    #[must_use = "callers must handle whether an optional owned OS string was present"]
+    pub fn os_string_opt(&mut self) -> Result<Option<OsString>, Error> {
+        Ok(self.value_opt()?.map(Value::to_os_string))
+    }
+
+    /// Returns the optional value for the current option as UTF-8.
+    ///
+    /// This is shorthand for
+    /// `parser.value_opt()?.map(Value::to_str).transpose()`.
+    ///
+    /// When the next token already looks like another option, this returns
+    /// `Ok(None)` and leaves that token untouched.
+    #[must_use = "callers must handle whether an optional UTF-8 string was present"]
+    pub fn string_opt(&mut self) -> Result<Option<&str>, Error> {
+        self.value_opt()?.map(Value::to_str).transpose()
     }
 
     /// Parses the required value for the current option using [`FromStr`].

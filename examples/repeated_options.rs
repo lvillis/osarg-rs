@@ -18,11 +18,11 @@ struct Config {
 fn parse_define(value: Value<'_>) -> Result<(String, String), osarg::Error> {
     let text = value.to_str()?;
     let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(osarg::Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     };
 
     if key.is_empty() {
-        return Err(osarg::Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     }
 
     Ok((key.to_owned(), raw_value.to_owned()))
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 verbose = verbose.saturating_add(1);
             }
             Arg::Short('I') | Arg::Long("include") => {
-                includes.push(parser.value()?.to_os_string());
+                includes.push(parser.os_string()?);
             }
             Arg::Short('D') | Arg::Long("define") => {
                 defines.push(parse_define(parser.value()?)?);
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         verbose,
         includes,
         defines,
-        input: input.ok_or_else(|| osarg::Error::unexpected_argument("<INPUT>".into()))?,
+        input: input.ok_or_else(|| osarg::Error::missing_argument_for("<INPUT>".into()))?,
     };
 
     println!("verbose={}", config.verbose);

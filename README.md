@@ -50,7 +50,7 @@ fn main() -> Result<(), osarg::Error> {
         }
     }
 
-    let path = path.ok_or_else(|| osarg::Error::unexpected_argument("<PATH>".into()))?;
+    let path = path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?;
     let _ = (port, path);
     Ok(())
 }

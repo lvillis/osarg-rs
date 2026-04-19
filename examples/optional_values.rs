@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let path: OsString = path.ok_or_else(|| osarg::Error::unexpected_argument("<PATH>".into()))?;
+    let path: OsString = path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?;
 
     println!(
         "color={color:?} verbose={verbose} path={}",

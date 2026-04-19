@@ -14,11 +14,11 @@ struct Config {
 fn parse_env_pair(value: Value<'_>) -> Result<(String, String), Error> {
     let text = value.to_str()?;
     let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     };
 
     if key.is_empty() {
-        return Err(Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     }
 
     Ok((key.to_owned(), raw_value.to_owned()))
@@ -46,7 +46,7 @@ fn parse_wrapper(args: &[&str]) -> Result<Config, Error> {
 
     Ok(Config {
         envs,
-        command: command.ok_or_else(|| Error::unexpected_argument("<CMD>".into()))?,
+        command: command.ok_or_else(|| Error::missing_argument_for("<CMD>".into()))?,
         args: forwarded,
     })
 }
@@ -92,6 +92,6 @@ fn remaining_vec_preserves_grouped_short_tail() {
 #[test]
 fn wrapper_requires_a_command() {
     let error = parse_wrapper(&["--env", "RUST_LOG=debug"]).unwrap_err();
-    assert_eq!(error.kind(), ErrorKind::UnexpectedArgument);
+    assert_eq!(error.kind(), ErrorKind::MissingArgument);
     assert_eq!(error.argument().unwrap().to_string_lossy(), "<CMD>");
 }

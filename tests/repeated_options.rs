@@ -15,11 +15,11 @@ struct Config {
 fn parse_define(value: Value<'_>) -> Result<(String, String), Error> {
     let text = value.to_str()?;
     let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     };
 
     if key.is_empty() {
-        return Err(Error::invalid_value_for(value.to_os_string()));
+        return Err(value.invalid());
     }
 
     Ok((key.to_owned(), raw_value.to_owned()))
@@ -38,7 +38,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
                 verbose = verbose.saturating_add(1);
             }
             Arg::Short('I') | Arg::Long("include") => {
-                includes.push(parser.value()?.to_os_string());
+                includes.push(parser.os_string()?);
             }
             Arg::Short('D') | Arg::Long("define") => {
                 defines.push(parse_define(parser.value()?)?);
@@ -57,7 +57,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
         verbose,
         includes,
         defines,
-        input: input.ok_or_else(|| Error::unexpected_argument("<INPUT>".into()))?,
+        input: input.ok_or_else(|| Error::missing_argument_for("<INPUT>".into()))?,
     })
 }
 
