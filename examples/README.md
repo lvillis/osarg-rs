@@ -6,7 +6,7 @@ copy-pasteable, and each one demonstrates a specific `osarg` pattern.
 - `basic.rs`: a normal single-command CLI with caller-owned help/version text
 - `optional_values.rs`: `parse_opt()` and optional-value flag handling
 - `repeated_options.rs`: repeated flags, repeated values, and custom validation
-- `passthrough.rs`: wrapper-style parsing with `remaining_vec()`
+- `passthrough.rs`: wrapper-style parsing with `current_value_and_remaining()`
 
 Run them with:
 

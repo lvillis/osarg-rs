@@ -2,13 +2,13 @@ mod common;
 
 use common::parser;
 use osarg::{Arg, Error, ErrorKind};
-use std::ffi::OsString;
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Eq)]
 struct Config {
     bind: String,
     port: u16,
-    path: OsString,
+    path: PathBuf,
 }
 
 fn parse_config(args: &[&str]) -> Result<Config, Error> {
@@ -20,16 +20,13 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('b') | Arg::Long("bind") => {
-                bind = parser.string()?.to_owned();
+                bind = parser.string_owned()?;
             }
             Arg::Short('p') | Arg::Long("port") => {
                 port = parser.parse::<u16>()?;
             }
             Arg::Value(value) => {
-                if path.is_some() {
-                    return Err(value.unexpected());
-                }
-                path = Some(value.to_os_string());
+                value.store_path_buf(&mut path)?;
             }
             other => return Err(other.unexpected()),
         }
@@ -38,7 +35,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     Ok(Config {
         bind,
         port,
-        path: path.ok_or_else(|| Error::missing_argument_for("<PATH>".into()))?,
+        path: osarg::required(path, "<PATH>")?,
     })
 }
 
@@ -51,7 +48,7 @@ fn parses_basic_cli_with_short_and_long_forms() {
         Config {
             bind: String::from("0.0.0.0"),
             port: 8080,
-            path: OsString::from("./data"),
+            path: PathBuf::from("./data"),
         }
     );
 }

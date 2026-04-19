@@ -37,11 +37,7 @@
 //! ```rust
 //! use osarg::{Arg, Parser};
 //!
-//! let mut parser = Parser::new(
-//!     ["-p", "8080", "--help"]
-//!         .into_iter()
-//!         .map(std::ffi::OsString::from),
-//! );
+//! let mut parser = Parser::from_args(["-p", "8080", "--help"]);
 //!
 //! let mut port = None;
 //! let mut help = false;
@@ -52,7 +48,7 @@
 //!             port = Some(parser.value()?.parse::<u16>()?);
 //!         }
 //!         Arg::Short('h') | Arg::Long("help") => {
-//!             help = true;
+//!             osarg::set_flag(&mut help);
 //!         }
 //!         other => return Err(other.unexpected()),
 //!     }
@@ -71,11 +67,7 @@
 //! ```rust
 //! use osarg::{Arg, Parser};
 //!
-//! let mut parser = Parser::new(
-//!     ["--color", "--help"]
-//!         .into_iter()
-//!         .map(std::ffi::OsString::from),
-//! );
+//! let mut parser = Parser::from_args(["--color", "--help"]);
 //!
 //! assert_eq!(parser.next()?, Some(Arg::Long("color")));
 //! assert_eq!(parser.value_opt()?.map(|value| value.to_str()), None);
@@ -99,16 +91,11 @@
 //! const HELP: help::Help<'static> = help::Help::new("demo [OPTIONS]", SECTIONS);
 //! const VERSION: &str = "1.2.3";
 //!
-//! let mut parser = Parser::new(["--help"].into_iter().map(std::ffi::OsString::from));
+//! let mut parser = Parser::from_args(["--help"]);
 //! let mut output = Vec::new();
 //!
 //! while let Some(arg) = parser.next()? {
-//!     if let Some(flag) = standard::classify(arg) {
-//!         match flag {
-//!             Flag::Help => HELP.write(&mut output)?,
-//!             Flag::Version => standard::write(&mut output, flag, "", VERSION)?,
-//!         }
-//!     }
+//!     standard::try_write(&mut output, arg, HELP, VERSION)?;
 //! }
 //!
 //! assert!(String::from_utf8(output)?.starts_with("usage: demo [OPTIONS]\n"));
@@ -122,11 +109,14 @@
 //! ```rust
 //! use osarg::{Arg, Parser};
 //!
-//! let mut parser = Parser::new(
-//!     ["--env", "RUST_LOG=debug", "cargo", "test", "--", "--nocapture"]
-//!         .into_iter()
-//!         .map(std::ffi::OsString::from),
-//! );
+//! let mut parser = Parser::from_args([
+//!     "--env",
+//!     "RUST_LOG=debug",
+//!     "cargo",
+//!     "test",
+//!     "--",
+//!     "--nocapture",
+//! ]);
 //!
 //! let mut env_value = None;
 //! let mut command = None;
@@ -137,9 +127,10 @@
 //!         Arg::Long("env") => {
 //!             env_value = Some(parser.os_string()?);
 //!         }
-//!         Arg::Value(value) => {
-//!             command = Some(value.to_os_string());
-//!             forwarded = parser.remaining_vec();
+//!         Arg::Value(_) => {
+//!             let (cmd, args) = parser.current_value_and_remaining()?;
+//!             command = Some(cmd);
+//!             forwarded = args;
 //!             break;
 //!         }
 //!         other => return Err(other.unexpected()),
@@ -172,3 +163,53 @@ pub use arg::Arg;
 pub use error::{Error, ErrorKind};
 pub use parser::{Parser, Remaining};
 pub use value::Value;
+
+/// Extracts a required caller-owned value from an [`Option`].
+///
+/// This is a thin convenience for required positionals or subcommands that are
+/// collected during parsing and finalized afterwards.
+///
+/// ```rust
+/// let path = osarg::required(Some(String::from("./data")), "<PATH>")?;
+///
+/// assert_eq!(path, "./data");
+/// # Ok::<(), osarg::Error>(())
+/// ```
+pub fn required<T, S>(value: Option<T>, argument: S) -> Result<T, Error>
+where
+    S: Into<std::ffi::OsString>,
+{
+    let argument = argument.into();
+    value.ok_or_else(move || Error::missing_argument_for(argument))
+}
+
+/// Increments a repeated flag counter with saturating semantics.
+///
+/// This is a thin convenience for flags such as `-v -v` or `-vv`.
+///
+/// ```rust
+/// let mut verbose = 0u8;
+///
+/// osarg::count_flag(&mut verbose);
+/// osarg::count_flag(&mut verbose);
+///
+/// assert_eq!(verbose, 2);
+/// ```
+pub fn count_flag(counter: &mut u8) {
+    *counter = counter.saturating_add(1);
+}
+
+/// Sets a boolean flag to `true`.
+///
+/// This is a thin convenience for single flags such as `--dry-run`.
+///
+/// ```rust
+/// let mut dry_run = false;
+///
+/// osarg::set_flag(&mut dry_run);
+///
+/// assert!(dry_run);
+/// ```
+pub fn set_flag(flag: &mut bool) {
+    *flag = true;
+}

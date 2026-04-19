@@ -2,7 +2,7 @@ mod common;
 
 use common::parser;
 use osarg::{Arg, Error, ErrorKind};
-use std::ffi::OsString;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -30,7 +30,7 @@ impl FromStr for ColorChoice {
 struct Config {
     color: ColorChoice,
     verbose: u8,
-    path: OsString,
+    path: PathBuf,
 }
 
 fn parse_config(args: &[&str]) -> Result<Config, Error> {
@@ -42,18 +42,13 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('C') | Arg::Long("color") => {
-                color = parser
-                    .parse_opt::<ColorChoice>()?
-                    .unwrap_or(ColorChoice::Auto);
+                color = parser.parse_opt_or_default::<ColorChoice>()?;
             }
             Arg::Short('v') | Arg::Long("verbose") => {
-                verbose = verbose.saturating_add(1);
+                osarg::count_flag(&mut verbose);
             }
             Arg::Value(value) => {
-                if path.is_some() {
-                    return Err(value.unexpected());
-                }
-                path = Some(value.to_os_string());
+                value.store_path_buf(&mut path)?;
             }
             other => return Err(other.unexpected()),
         }
@@ -62,7 +57,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     Ok(Config {
         color,
         verbose,
-        path: path.ok_or_else(|| Error::missing_argument_for("<PATH>".into()))?,
+        path: osarg::required(path, "<PATH>")?,
     })
 }
 
@@ -75,7 +70,7 @@ fn optional_value_defaults_when_next_token_is_another_option() {
         Config {
             color: ColorChoice::Auto,
             verbose: 1,
-            path: OsString::from("./file.txt"),
+            path: PathBuf::from("./file.txt"),
         }
     );
 }
@@ -89,7 +84,7 @@ fn optional_value_accepts_short_attached_tail() {
         Config {
             color: ColorChoice::Always,
             verbose: 0,
-            path: OsString::from("./file.txt"),
+            path: PathBuf::from("./file.txt"),
         }
     );
 }

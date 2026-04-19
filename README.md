@@ -21,22 +21,19 @@ generated help text.
 - `--`
 - positional arguments
 - repeated options
-- passthrough via `Parser::into_remaining()` / `remaining_vec()`
+- passthrough via `Parser::current_value_and_remaining()` / `into_remaining()` / `remaining_vec()`
 
 ## Example
 
 ```rust
 use osarg::{Arg, Parser};
+use std::path::PathBuf;
 
 fn main() -> Result<(), osarg::Error> {
-    let mut parser = Parser::new(
-        ["-p", "8080", "./data"]
-            .into_iter()
-            .map(std::ffi::OsString::from),
-    );
+    let mut parser = Parser::from_args(["-p", "8080", "./data"]);
 
     let mut port = 8080;
-    let mut path = None;
+    let mut path: Option<PathBuf> = None;
 
     while let Some(arg) = parser.next()? {
         match arg {
@@ -44,13 +41,13 @@ fn main() -> Result<(), osarg::Error> {
                 port = parser.parse::<u16>()?;
             }
             Arg::Value(value) => {
-                path = Some(value.to_os_string());
+                value.store_path_buf(&mut path)?;
             }
             other => return Err(other.unexpected()),
         }
     }
 
-    let path = path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?;
+    let path = osarg::required(path, "<PATH>")?;
     let _ = (port, path);
     Ok(())
 }

@@ -1,28 +1,15 @@
 mod common;
 
 use common::parser;
-use osarg::{Arg, Error, ErrorKind, Value};
-use std::ffi::OsString;
+use osarg::{Arg, Error, ErrorKind};
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Eq)]
 struct Config {
     verbose: u8,
-    includes: Vec<OsString>,
+    includes: Vec<PathBuf>,
     defines: Vec<(String, String)>,
-    input: OsString,
-}
-
-fn parse_define(value: Value<'_>) -> Result<(String, String), Error> {
-    let text = value.to_str()?;
-    let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(value.invalid());
-    };
-
-    if key.is_empty() {
-        return Err(value.invalid());
-    }
-
-    Ok((key.to_owned(), raw_value.to_owned()))
+    input: PathBuf,
 }
 
 fn parse_config(args: &[&str]) -> Result<Config, Error> {
@@ -35,19 +22,16 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('v') | Arg::Long("verbose") => {
-                verbose = verbose.saturating_add(1);
+                osarg::count_flag(&mut verbose);
             }
             Arg::Short('I') | Arg::Long("include") => {
-                includes.push(parser.os_string()?);
+                parser.push_path_buf(&mut includes)?;
             }
             Arg::Short('D') | Arg::Long("define") => {
-                defines.push(parse_define(parser.value()?)?);
+                parser.push_split_once_nonempty_key_owned('=', &mut defines)?;
             }
             Arg::Value(value) => {
-                if input.is_some() {
-                    return Err(value.unexpected());
-                }
-                input = Some(value.to_os_string());
+                value.store_path_buf(&mut input)?;
             }
             other => return Err(other.unexpected()),
         }
@@ -57,7 +41,7 @@ fn parse_config(args: &[&str]) -> Result<Config, Error> {
         verbose,
         includes,
         defines,
-        input: input.ok_or_else(|| Error::missing_argument_for("<INPUT>".into()))?,
+        input: osarg::required(input, "<INPUT>")?,
     })
 }
 
@@ -78,9 +62,9 @@ fn repeated_options_are_collected_in_order() {
         config,
         Config {
             verbose: 2,
-            includes: vec![OsString::from("include"), OsString::from("generated")],
+            includes: vec![PathBuf::from("include"), PathBuf::from("generated")],
             defines: vec![(String::from("MODE"), String::from("release"))],
-            input: OsString::from("src/main.c"),
+            input: PathBuf::from("src/main.c"),
         }
     );
 }

@@ -9,7 +9,7 @@
 //   cargo run --example optional_values -- -Calways ./file.txt
 
 use osarg::{Arg, Parser};
-use std::ffi::OsString;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -37,34 +37,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut parser = Parser::from_env();
     let mut color = ColorChoice::default();
     let mut verbose = 0u8;
-    let mut path = None;
+    let mut path: Option<PathBuf> = None;
 
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('C') | Arg::Long("color") => {
-                color = parser
-                    .parse_opt::<ColorChoice>()?
-                    .unwrap_or(ColorChoice::Auto);
+                color = parser.parse_opt_or_default::<ColorChoice>()?;
             }
             Arg::Short('v') | Arg::Long("verbose") => {
-                verbose = verbose.saturating_add(1);
+                osarg::count_flag(&mut verbose);
             }
             Arg::Value(value) => {
-                if path.is_some() {
-                    return Err(value.unexpected().into());
-                }
-                path = Some(value.to_os_string());
+                value.store_path_buf(&mut path)?;
             }
             other => return Err(other.unexpected().into()),
         }
     }
 
-    let path: OsString = path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?;
+    let path: PathBuf = osarg::required(path, "<PATH>")?;
 
-    println!(
-        "color={color:?} verbose={verbose} path={}",
-        path.to_string_lossy()
-    );
+    println!("color={color:?} verbose={verbose} path={}", path.display());
 
     Ok(())
 }

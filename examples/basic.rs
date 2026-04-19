@@ -5,8 +5,7 @@
 //   cargo run --example basic -- -b 0.0.0.0 -p8080 ./data
 
 use osarg::{Arg, Parser, help, standard};
-use standard::Flag;
-use std::ffi::OsString;
+use std::path::PathBuf;
 
 const HELP_SECTIONS: &[help::Section<'static>] = &[
     help::Section::new(
@@ -26,7 +25,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 struct Config {
     bind: String,
     port: u16,
-    path: OsString,
+    path: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,31 +35,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut path = None;
 
     while let Some(arg) = parser.next()? {
-        if let Some(flag) = standard::classify(arg) {
-            match flag {
-                Flag::Help => {
-                    HELP_DOC.write(&mut std::io::stdout())?;
-                    return Ok(());
-                }
-                Flag::Version => {
-                    standard::write(&mut std::io::stdout(), flag, "", VERSION)?;
-                    return Ok(());
-                }
-            }
+        if standard::try_print(arg, HELP_DOC, VERSION)? {
+            return Ok(());
         }
 
         match arg {
             Arg::Short('b') | Arg::Long("bind") => {
-                bind = parser.string()?.to_owned();
+                bind = parser.string_owned()?;
             }
             Arg::Short('p') | Arg::Long("port") => {
                 port = parser.parse::<u16>()?;
             }
             Arg::Value(value) => {
-                if path.is_some() {
-                    return Err(value.unexpected().into());
-                }
-                path = Some(value.to_os_string());
+                value.store_path_buf(&mut path)?;
             }
             other => return Err(other.unexpected().into()),
         }
@@ -69,14 +56,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
         bind,
         port,
-        path: path.ok_or_else(|| osarg::Error::missing_argument_for("<PATH>".into()))?,
+        path: osarg::required(path, "<PATH>")?,
     };
 
     println!(
         "bind={} port={} path={}",
         config.bind,
         config.port,
-        config.path.to_string_lossy()
+        config.path.display()
     );
 
     Ok(())

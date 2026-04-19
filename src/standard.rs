@@ -17,23 +17,18 @@
 //! const HELP: help::Help<'static> = help::Help::new("demo [OPTIONS]", SECTIONS);
 //! const VERSION: &str = "1.2.3";
 //!
-//! let mut parser = Parser::new(["-V"].into_iter().map(std::ffi::OsString::from));
+//! let mut parser = Parser::from_args(["-V"]);
 //! let mut output = Vec::new();
 //!
 //! while let Some(arg) = parser.next()? {
-//!     if let Some(flag) = standard::classify(arg) {
-//!         match flag {
-//!             Flag::Help => HELP.write(&mut output)?,
-//!             Flag::Version => standard::write(&mut output, flag, "", VERSION)?,
-//!         }
-//!     }
+//!     standard::try_write(&mut output, arg, HELP, VERSION)?;
 //! }
 //!
 //! assert_eq!(String::from_utf8(output)?, "1.2.3");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-use crate::Arg;
+use crate::{Arg, help};
 use std::io;
 use std::io::Write;
 
@@ -112,6 +107,64 @@ pub const fn text<'a>(flag: Flag, help: &'a str, version: &'a str) -> &'a str {
         Flag::Help => help,
         Flag::Version => version,
     }
+}
+
+/// Writes standard help or version output when the argument matches.
+///
+/// This is a thin convenience over [`classify`], [`help::Help::write`], and
+/// [`write`]. It returns `Ok(true)` when output was written and `Ok(false)`
+/// when the argument was not a standard help/version flag.
+///
+/// This helper does not exit the process or otherwise take over control flow.
+pub fn try_write(
+    writer: &mut dyn Write,
+    arg: Arg<'_>,
+    help_doc: help::Help<'_>,
+    version: &str,
+) -> io::Result<bool> {
+    match classify(arg) {
+        Some(Flag::Help) => {
+            help_doc.write(writer)?;
+            Ok(true)
+        }
+        Some(Flag::Version) => {
+            write(writer, Flag::Version, "", version)?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
+/// Writes standard help or version output to stdout when the argument matches.
+///
+/// This is a thin convenience over [`try_write`] for executable code.
+///
+/// ```rust
+/// use osarg::{Arg, Parser, help, standard};
+///
+/// const SECTIONS: &[help::Section<'static>] =
+///     &[help::Section::new("options:", "  -h, --help  show help")];
+/// const HELP: help::Help<'static> = help::Help::new("demo [OPTIONS]", SECTIONS);
+///
+/// let mut parser = Parser::from_args(["-h"]);
+///
+/// while let Some(arg) = parser.next()? {
+///     let _ = standard::try_print(arg, HELP, "1.2.3")?;
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn try_print(arg: Arg<'_>, help_doc: help::Help<'_>, version: &str) -> io::Result<bool> {
+    let mut stdout = io::stdout().lock();
+    try_write(&mut stdout, arg, help_doc, version)
+}
+
+/// Writes standard help or version output to stderr when the argument matches.
+///
+/// This is a thin convenience over [`try_write`] for CLI code that prefers to
+/// render caller-owned help or version text to stderr.
+pub fn try_eprint(arg: Arg<'_>, help_doc: help::Help<'_>, version: &str) -> io::Result<bool> {
+    let mut stderr = io::stderr().lock();
+    try_write(&mut stderr, arg, help_doc, version)
 }
 
 /// Writes the caller-owned help or version text to the provided writer.

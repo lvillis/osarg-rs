@@ -18,14 +18,8 @@ fn render_standard_output(args: &[&str]) -> Result<Option<String>, Error> {
     let mut parser = parser(args);
 
     while let Some(arg) = parser.next()? {
-        if let Some(flag) = standard::classify(arg) {
-            let mut output = Vec::new();
-            match flag {
-                Flag::Help => HELP_DOC.write(&mut output).expect("vec write succeeds"),
-                Flag::Version => {
-                    standard::write(&mut output, flag, "", VERSION).expect("vec write succeeds")
-                }
-            }
+        let mut output = Vec::new();
+        if standard::try_write(&mut output, arg, HELP_DOC, VERSION).expect("vec write succeeds") {
             return Ok(Some(
                 String::from_utf8(output).expect("help/version is utf-8"),
             ));

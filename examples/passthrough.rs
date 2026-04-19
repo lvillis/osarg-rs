@@ -1,11 +1,10 @@
-// Wrapper / passthrough pattern using `remaining_vec()`.
+// Wrapper / passthrough pattern using `current_value_and_remaining()`.
 //
 // Try:
 //   cargo run --example passthrough -- --dry-run echo hello world
 //   cargo run --example passthrough -- -e RUST_LOG=debug cargo test -- --nocapture
 
-use osarg::{Arg, Parser, Value, help, standard};
-use standard::Flag;
+use osarg::{Arg, Parser, help, standard};
 use std::ffi::OsString;
 
 const HELP_SECTIONS: &[help::Section<'static>] = &[
@@ -30,19 +29,6 @@ struct Config {
     args: Vec<OsString>,
 }
 
-fn parse_env_pair(value: Value<'_>) -> Result<(String, String), osarg::Error> {
-    let text = value.to_str()?;
-    let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(value.invalid());
-    };
-
-    if key.is_empty() {
-        return Err(value.invalid());
-    }
-
-    Ok((key.to_owned(), raw_value.to_owned()))
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut parser = Parser::from_env();
     let mut dry_run = false;
@@ -51,29 +37,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = Vec::new();
 
     while let Some(arg) = parser.next()? {
-        if let Some(flag) = standard::classify(arg) {
-            match flag {
-                Flag::Help => {
-                    HELP_DOC.write(&mut std::io::stdout())?;
-                    return Ok(());
-                }
-                Flag::Version => {
-                    standard::write(&mut std::io::stdout(), flag, "", VERSION)?;
-                    return Ok(());
-                }
-            }
+        if standard::try_print(arg, HELP_DOC, VERSION)? {
+            return Ok(());
         }
 
         match arg {
             Arg::Short('n') | Arg::Long("dry-run") => {
-                dry_run = true;
+                osarg::set_flag(&mut dry_run);
             }
             Arg::Short('e') | Arg::Long("env") => {
-                envs.push(parse_env_pair(parser.value()?)?);
+                parser.push_split_once_nonempty_key_owned('=', &mut envs)?;
             }
-            Arg::Value(value) => {
-                command = Some(value.to_os_string());
-                args = parser.remaining_vec();
+            Arg::Value(_) => {
+                let (cmd, forwarded) = parser.current_value_and_remaining()?;
+                command = Some(cmd);
+                args = forwarded;
                 break;
             }
             other => return Err(other.unexpected().into()),
@@ -83,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
         dry_run,
         envs,
-        command: command.ok_or_else(|| osarg::Error::missing_argument_for("<CMD>".into()))?,
+        command: osarg::required(command, "<CMD>")?,
         args,
     };
 

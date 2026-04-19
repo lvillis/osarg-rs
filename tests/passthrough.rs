@@ -1,7 +1,7 @@
 mod common;
 
 use common::parser;
-use osarg::{Arg, Error, ErrorKind, Value};
+use osarg::{Arg, Error, ErrorKind};
 use std::ffi::OsString;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -9,19 +9,6 @@ struct Config {
     envs: Vec<(String, String)>,
     command: OsString,
     args: Vec<OsString>,
-}
-
-fn parse_env_pair(value: Value<'_>) -> Result<(String, String), Error> {
-    let text = value.to_str()?;
-    let Some((key, raw_value)) = text.split_once('=') else {
-        return Err(value.invalid());
-    };
-
-    if key.is_empty() {
-        return Err(value.invalid());
-    }
-
-    Ok((key.to_owned(), raw_value.to_owned()))
 }
 
 fn parse_wrapper(args: &[&str]) -> Result<Config, Error> {
@@ -33,11 +20,12 @@ fn parse_wrapper(args: &[&str]) -> Result<Config, Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Arg::Short('e') | Arg::Long("env") => {
-                envs.push(parse_env_pair(parser.value()?)?);
+                parser.push_split_once_nonempty_key_owned('=', &mut envs)?;
             }
-            Arg::Value(value) => {
-                command = Some(value.to_os_string());
-                forwarded = parser.remaining_vec();
+            Arg::Value(_) => {
+                let (cmd, args) = parser.current_value_and_remaining()?;
+                command = Some(cmd);
+                forwarded = args;
                 break;
             }
             other => return Err(other.unexpected()),
@@ -46,7 +34,7 @@ fn parse_wrapper(args: &[&str]) -> Result<Config, Error> {
 
     Ok(Config {
         envs,
-        command: command.ok_or_else(|| Error::missing_argument_for("<CMD>".into()))?,
+        command: osarg::required(command, "<CMD>")?,
         args: forwarded,
     })
 }
