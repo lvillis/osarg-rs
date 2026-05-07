@@ -783,6 +783,22 @@ fn parser_store_helpers_reject_duplicate_options() {
     let error = parser.store_parse::<u16>(&mut port).unwrap_err();
     assert_eq!(error.kind(), ErrorKind::UnexpectedArgument);
     assert_eq!(error.argument().unwrap().to_string_lossy(), "--port");
+    assert_eq!(parser.next().unwrap(), None);
+}
+
+#[test]
+fn parser_store_helpers_prefer_duplicate_error_when_duplicate_value_is_missing() {
+    let mut parser = parser(&["--port", "8080", "--port"]);
+    let mut port = None;
+
+    assert_eq!(parser.next().unwrap(), Some(Arg::Long("port")));
+    parser.store_parse::<u16>(&mut port).unwrap();
+    assert_eq!(parser.next().unwrap(), Some(Arg::Long("port")));
+
+    let error = parser.store_parse::<u16>(&mut port).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::UnexpectedArgument);
+    assert_eq!(error.argument().unwrap().to_string_lossy(), "--port");
+    assert_eq!(parser.next().unwrap(), None);
 }
 
 #[test]

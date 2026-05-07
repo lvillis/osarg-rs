@@ -112,7 +112,7 @@ pub const fn text<'a>(flag: Flag, help: &'a str, version: &'a str) -> &'a str {
 /// Writes standard help or version output when the argument matches.
 ///
 /// This is a thin convenience over [`classify`], [`help::Help::write`], and
-/// [`write`]. It returns `Ok(true)` when output was written and `Ok(false)`
+/// [`write()`]. It returns `Ok(true)` when output was written and `Ok(false)`
 /// when the argument was not a standard help/version flag.
 ///
 /// This helper does not exit the process or otherwise take over control flow.
